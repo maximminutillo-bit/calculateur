@@ -4,43 +4,49 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>🌓 Convertisseur LAY OrbitX</title>
-  <meta name="description" content="Calcul LAY OrbitX avec commission – freebet conversion (monochrome)" />
+  <meta name="description" content="Calcul de la mise LAY optimale avec commission OrbitX (par défaut 3%). Monochrome, mobile-first.">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0A0A0A">
   <style>
+    /* Monochrome */
     :root{--bg:#FAFAFA;--fg:#0A0A0A;--muted:#6B7280;--card:#FFFFFF;--border:#E5E7EB;--accent:#111111;--accent-ghost:#FFFFFF;--accent-border:#111111;--warn-bg:#F5F5F5;--warn-br:#D4D4D4;--ok-bg:#F5F5F5;--ok-br:#D4D4D4}
     .dark{--bg:#0A0A0A;--fg:#F5F5F5;--muted:#9CA3AF;--card:#111111;--border:#27272A;--accent:#FFFFFF;--accent-ghost:#111111;--accent-border:#FFFFFF;--warn-bg:#171717;--warn-br:#404040;--ok-bg:#171717;--ok-br:#404040}
-
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--fg);font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     .wrap{max-width:720px;margin:0 auto;padding:20px}
-    .header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
     h1{margin:0;font-size:22px;letter-spacing:.2px}
     .sub{margin:2px 0 10px;color:var(--muted);font-size:13px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
-
     label{display:block;font-size:14px;margin:10px 0 6px}
     input{width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--fg);outline:none}
     input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.07)}
-
     .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
     .btn{cursor:pointer;border:1px solid var(--accent-border);background:var(--accent);color:var(--bg);padding:10px 14px;border-radius:12px;font-weight:700}
     .btn.ghost{background:var(--accent-ghost);color:var(--fg)}
     .btn.small{padding:6px 10px;font-weight:600}
     .right{margin-left:auto}
-
     .result{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px;margin-top:14px}
     .grid{display:grid;grid-template-columns:1fr auto;row-gap:8px}
     .grid div strong{font-weight:800}
-
     .pill{display:none;margin-top:12px;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid}
     .ok{background:var(--ok-bg);border-color:var(--ok-br)}
     .warn{background:var(--warn-bg);border-color:var(--warn-br)}
-
     .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
     .sep{height:1px;background:var(--border);margin:16px 0}
     .switch{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
     .switch button{border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:6px 10px;cursor:pointer}
+
+    /* NAV pills unifiées */
+    .nav{display:flex;gap:8px;align-items:center;margin:-2px 0 12px 0}
+    .nav .pill{
+      display:inline-block;text-decoration:none;
+      padding:6px 12px;border-radius:999px;font-weight:700;
+      border:1px solid var(--border); background:transparent; color:var(--fg);
+    }
+    .nav .pill.active{
+      background:var(--accent); color:var(--bg); border-color:var(--accent-border);
+    }
   </style>
 </head>
 <body class="dark">
@@ -52,12 +58,16 @@
         <button id="theme-toggle" aria-label="Basculer le thème">Sombre</button>
       </div>
     </div>
+
+    <!-- NAV -->
     <nav class="nav">
       <a href="monopoly.html" class="pill active">Monopoly Lay Orbitx</a>
       <a href="couverture-back.html" class="pill">Couverture BACK</a>
     </nav>
+
     <p class="sub">⚙️ Calcul de la mise LAY optimale avec commission OrbitX (par défaut 3%). Monochrome, mobile-first.</p>
 
+    <!-- FORM -->
     <div class="card">
       <label>💰 Montant du freebet (€)
         <input id="lay-freebet" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Ex: 25" />
@@ -110,7 +120,7 @@
     const show = (el) => { if (el) el.style.display = ''; }
     const hide = (el) => { if (el) el.style.display = 'none'; }
 
-    // Core
+    // Core (port Python -> JS)
     const conversionLayOrbitx = (back_odds, lay_odds, freebet_amount, commission_percent = 3) => {
       const commission = commission_percent / 100;
       const lay_stake = (freebet_amount * (back_odds - 1)) / (lay_odds - commission);
@@ -137,9 +147,10 @@
       document.getElementById('lay-net').innerHTML      = '<strong>' + fmt(r.net_result) + '</strong>';
       const conv = Math.round(r.conversion * 100) / 100;
       document.getElementById('lay-conv').innerHTML     = '<strong>' + conv.toFixed(2) + '%</strong>';
-      document.getElementById('lay-indicator').textContent = conv >= 80 ? '✅ Conversion excellente (≥ 80%)' : '⚠️ Conversion insuffisante (< 80%)';
-      document.getElementById('lay-indicator').className   = 'pill ' + (conv >= 80 ? 'ok' : 'warn');
-      show(document.getElementById('lay-indicator'));
+      const ind = document.getElementById('lay-indicator');
+      ind.textContent = conv >= 80 ? '✅ Conversion excellente (≥ 80%)' : '⚠️ Conversion insuffisante (< 80%)';
+      ind.className   = 'pill ' + (conv >= 80 ? 'ok' : 'warn');
+      show(ind);
       show(document.getElementById('lay-result'));
 
       try { localStorage.setItem('sc-lay', JSON.stringify({F, cB, cL, comm})); } catch {}
@@ -155,12 +166,8 @@
       });
 
       // Buttons
-      const calcBtn  = document.getElementById('lay-calcul');
-      const resetBtn = document.getElementById('lay-reset');
-      const copyStakeBtn = document.getElementById('copy-stake');
-
-      if (calcBtn)  calcBtn.addEventListener('click', layCalc);
-      if (resetBtn) resetBtn.addEventListener('click', () => {
+      document.getElementById('lay-calcul').addEventListener('click', layCalc);
+      document.getElementById('lay-reset').addEventListener('click', () => {
         ['lay-freebet','lay-back','lay-lay','lay-comm'].forEach(id => {
           document.getElementById(id).value = (id==='lay-comm') ? '3' : '';
         });
@@ -168,7 +175,7 @@
         hide(document.getElementById('lay-indicator'));
         try { localStorage.removeItem('sc-lay'); } catch {}
       });
-      if (copyStakeBtn) copyStakeBtn.addEventListener('click', async () => {
+      document.getElementById('copy-stake').addEventListener('click', async () => {
         const v = document.getElementById('lay-stake').textContent.replace(/[^0-9,.-]/g,'').replace(',','.');
         try { await navigator.clipboard.writeText(v); } catch {}
       });

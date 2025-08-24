@@ -1,83 +1,93 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🌓 Convertisseur LAY OrbitX</title>
-  <meta name="description" content="Calcul LAY OrbitX avec commission – freebet conversion (monochrome)" />
-  <meta name="color-scheme" content="dark light">
-  <meta name="theme-color" content="#0A0A0A">
-  <style>
-    /* Monochrome theme (black/white only) */
-    :root{--bg:#FAFAFA;--fg:#0A0A0A;--muted:#6B7280;--card:#FFFFFF;--border:#E5E7EB;--accent:#111111;--accent-ghost:#FFFFFF;--accent-border:#111111;--warn-bg:#F5F5F5;--warn-br:#D4D4D4;--ok-bg:#F5F5F5;--ok-br:#D4D4D4}
-    .dark{--bg:#0A0A0A;--fg:#F5F5F5;--muted:#9CA3AF;--card:#111111;--border:#27272A;--accent:#FFFFFF;--accent-ghost:#111111;--accent-border:#FFFFFF;--warn-bg:#171717;--warn-br:#404040;--ok-bg:#171717;--ok-br:#404040}
+<script>
+  // THEME
+  function applyTheme(t){
+    const root = document.body;
+    const toggleBtn = document.getElementById('theme-toggle');
+    if(t==='light'){ root.classList.remove('dark'); toggleBtn.textContent='Clair'; }
+    else { root.classList.add('dark'); toggleBtn.textContent='Sombre'; }
+  }
 
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--fg);font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:720px;margin:0 auto;padding:20px}
-    .header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
-    h1{margin:0;font-size:22px;letter-spacing:.2px}
-    .sub{margin:2px 0 10px;color:var(--muted);font-size:13px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  // HELPERS
+  const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+  const show = (el) => el.style.display = '';
+  const hide = (el) => el.style.display = 'none';
 
-    label{display:block;font-size:14px;margin:10px 0 6px}
-    input{width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--fg);outline:none}
-    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.07)}
+  // CORE (port Python -> JS)
+  const conversionLayOrbitx = (back_odds, lay_odds, freebet_amount, commission_percent = 3) => {
+    const commission = commission_percent / 100;
+    const lay_stake = (freebet_amount * (back_odds - 1)) / (lay_odds - commission);
+    const liability = lay_stake * (lay_odds - 1);
+    const gain_back = (back_odds - 1) * freebet_amount - liability;
+    const gain_lay = lay_stake * (1 - commission);
+    const net_result = Math.min(gain_back, gain_lay);
+    const conversion = (net_result / freebet_amount) * 100;
+    return { lay_stake, liability, gain_back, gain_lay, net_result, conversion };
+  };
 
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    .btn{cursor:pointer;border:1px solid var(--accent-border);background:var(--accent);color:var(--bg);padding:10px 14px;border-radius:12px;font-weight:700}
-    .btn.ghost{background:var(--accent-ghost);color:var(--fg)}
-    .btn.small{padding:6px 10px;font-weight:600}
-    .right{margin-left:auto}
+  const updateIndicator = (conv) => {
+    const box = document.getElementById('lay-indicator');
+    box.textContent = conv >= 80 ? '✅ Conversion excellente (≥ 80%)' : '⚠️ Conversion insuffisante (< 80%)';
+    box.className = 'pill ' + (conv >= 80 ? 'ok' : 'warn');
+    show(box);
+  };
 
-    .result{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px;margin-top:14px}
-    .grid{display:grid;grid-template-columns:1fr auto;row-gap:8px}
-    .grid div strong{font-weight:800}
+  const layCalc = () => {
+    const F   = parseFloat(document.getElementById('lay-freebet').value.replace(',', '.')) || 0;
+    const cB  = parseFloat(document.getElementById('lay-back').value.replace(',', '.')) || 0;
+    const cL  = parseFloat(document.getElementById('lay-lay').value.replace(',', '.')) || 0;
+    const comm= parseFloat(document.getElementById('lay-comm').value.replace(',', '.'));
+    if (!(F > 0 && cB > 1 && cL > 1 && comm >= 0 && (cL - (comm/100)) > 0)) return;
 
-    .pill{display:none;margin-top:12px;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid}
-    .ok{background:var(--ok-bg);border-color:var(--ok-br)}
-    .warn{background:var(--warn-bg);border-color:var(--warn-br)}
+    const r = conversionLayOrbitx(cB, cL, F, isNaN(comm) ? 3 : comm);
+    document.getElementById('lay-stake').innerHTML    = '<strong>' + fmt(r.lay_stake) + '</strong>';
+    document.getElementById('lay-liability').innerHTML= '<strong>' + fmt(r.liability) + '</strong>';
+    document.getElementById('lay-gain-back').innerHTML= '<strong>' + fmt(r.gain_back) + '</strong>';
+    document.getElementById('lay-gain-lay').innerHTML = '<strong>' + fmt(r.gain_lay) + '</strong>';
+    document.getElementById('lay-net').innerHTML      = '<strong>' + fmt(r.net_result) + '</strong>';
+    const conv = Math.round(r.conversion * 100) / 100;
+    document.getElementById('lay-conv').innerHTML     = '<strong>' + conv.toFixed(2) + '%</strong>';
+    updateIndicator(conv);
+    show(document.getElementById('lay-result'));
 
-    .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
-    .sep{height:1px;background:var(--border);margin:16px 0}
-    .switch{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
-    .switch button{border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--fg);padding:6px 10px;cursor:pointer}
-  </style>
-</head>
-<body class="dark">
-  <div class="wrap">
-    <div class="header">
-      <h1>🌓 Convertisseur LAY OrbitX</h1>
-      <div class="switch">
-        <span>Mode</span>
-        <button id="theme-toggle" aria-label="Basculer le thème">Sombre</button>
-      </div>
-    </div>
-    <nav class="topnav" style="margin:-6px 0 12px 0">
-      <a href="monopoly.html" class="btn ghost small" style="text-decoration:none">Monopoly Lay Orbitx</a>
-    </nav>
-    <p class="sub">⚙️ Calcul de la mise LAY optimale avec **commission OrbitX** (par défaut 3%). Monochrome, mobile-first.</p>
+    try { localStorage.setItem('sc-lay', JSON.stringify({F, cB, cL, comm})); } catch {}
+  };
 
-    <div class="card">
-      <label>💰 Montant du freebet (€)
-        <input id="lay-freebet" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Ex: 25" />
-      </label>
-      <label>🎯 Cote BACK (book FR)
-        <input id="lay-back" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="Ex: 2.20" />
-      </label>
-      <label>🔁 Cote LAY (OrbitX)
-        <input id="lay-lay" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="Ex: 1.70" />
-      </label>
-      <label>💼 Commission OrbitX (%)
-        <input id="lay-comm" type="number" inputmode="decimal" step="0.1" min="0" max="100" value="3" />
-      </label>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Theme init
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+    const toggleBtn = document.getElementById('theme-toggle');
+    if (toggleBtn) toggleBtn.addEventListener('click', () => {
+      const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+      localStorage.setItem('theme', next); applyTheme(next);
+    });
 
-      <div class="row">
-        <button id="lay-calcul" class="btn" aria-label="Calculer">🧮 Calculer</button>
-        <button id="lay-reset" class="btn ghost" aria-label="Réinitialiser">♻️ Réinitialiser</button>
-        <button id="copy-stake" class="btn ghost small right" title="Copier la mise">📋 Copier mise</button>
-      </div>
+    // Buttons (type="button" conseillé dans le HTML)
+    const calcBtn  = document.getElementById('lay-calcul');
+    const resetBtn = document.getElementById('lay-reset');
+    const copyStakeBtn = document.getElementById('copy-stake');
 
-      <div id="lay-result" class="result" style="display:none">
-        <div class="grid">
-          <div>💸 Mise LAY (OrbitX)</di
+    if (calcBtn)  calcBtn.addEventListener('click', layCalc);
+    if (resetBtn) resetBtn.addEventListener('click', () => {
+      ['lay-freebet','lay-back','lay-lay','lay-comm'].forEach(id => {
+        document.getElementById(id).value = (id==='lay-comm') ? '3' : '';
+      });
+      hide(document.getElementById('lay-result'));
+      hide(document.getElementById('lay-indicator'));
+      try { localStorage.removeItem('sc-lay'); } catch {}
+    });
+    if (copyStakeBtn) copyStakeBtn.addEventListener('click', async () => {
+      const v = document.getElementById('lay-stake').textContent.replace(/[^0-9,.-]/g,'').replace(',','.');
+      try { await navigator.clipboard.writeText(v); } catch {}
+    });
+
+    // Restore
+    try {
+      const s = JSON.parse(localStorage.getItem('sc-lay') || '{}');
+      if (s.F)  document.getElementById('lay-freebet').value = s.F;
+      if (s.cB) document.getElementById('lay-back').value = s.cB;
+      if (s.cL) document.getElementById('lay-lay').value = s.cL;
+      document.getElementById('lay-comm').value = (s.comm !== undefined) ? s.comm : '3';
+    } catch {}
+  });
+</script>

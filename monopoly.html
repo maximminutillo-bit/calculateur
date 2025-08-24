@@ -66,8 +66,8 @@
       </div>
 
       <div class="row">
-        <button id="calc" class="btn">Calculer Promo</button>
-        <button id="reset" class="btn ghost">Réinitialiser</button>
+        <button id="calc" class="btn" type="button">Calculer Promo</button>
+        <button id="reset" class="btn ghost" type="button">Réinitialiser</button>
       </div>
 
       <div id="flag" class="msg center"></div>
@@ -115,7 +115,7 @@
   </div>
 
   <script>
-    const fmt€ = (n) => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(n||0);
+    const fmtEUR = (n) => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(n||0);
 
     function compute() {
       const S = parseFloat(document.getElementById('stake').value.replace(',', '.')) || 0;
@@ -149,23 +149,23 @@
       flag.style.display = "";
 
       // Détails
-      document.getElementById('profit').textContent     = fmt€(net);
-      document.getElementById('stake_back').textContent = fmt€(S);
-      document.getElementById('stake_lay').textContent  = fmt€(layStake);
-      document.getElementById('liquidity').textContent  = fmt€(liability);
+      document.getElementById('profit').textContent     = fmtEUR(net);
+      document.getElementById('stake_back').textContent = fmtEUR(S);
+      document.getElementById('stake_lay').textContent  = fmtEUR(layStake);
+      document.getElementById('liquidity').textContent  = fmtEUR(liability);
 
       // Tableau
       document.getElementById('t_back1').textContent  = back.toFixed(2);
       document.getElementById('t_lay1').textContent   = lay.toFixed(2);
-      document.getElementById('t_stake1').textContent = fmt€(S);
-      document.getElementById('t_net1').textContent   = fmt€(netWin);
+      document.getElementById('t_stake1').textContent = fmtEUR(S);
+      document.getElementById('t_net1').textContent   = fmtEUR(netWin);
 
       document.getElementById('t_back2').textContent  = back.toFixed(2);
       document.getElementById('t_lay2').textContent   = lay.toFixed(2);
-      document.getElementById('t_stake2').textContent = fmt€(layStake);
-      document.getElementById('t_net2').textContent   = fmt€(netLose);
+      document.getElementById('t_stake2').textContent = fmtEUR(layStake);
+      document.getElementById('t_net2').textContent   = fmtEUR(netLose);
 
-      document.getElementById('t_net').textContent    = fmt€(net);
+      document.getElementById('t_net').textContent    = fmtEUR(net);
       document.getElementById('details').style.display = "";
       // Persist
       localStorage.setItem('monopoly', JSON.stringify({S, back, lay, commPct}));

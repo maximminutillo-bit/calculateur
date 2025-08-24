@@ -7,6 +7,17 @@
   <meta name="description" content="Couverture BACK↔BACK – égalisation des gains (monochrome)">
   <meta name="color-scheme" content="dark light">
   <style>
+        /* 1) Tout mesurer bordures comprises */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* 2) Empêche tout débordement horizontal des champs */
+    input, select, textarea, button { max-width: 100%; }
+
+    /* 3) (optionnel) masque les flèches des <input type="number"> qui
+      peuvent bousculer la mise en page selon le navigateur */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     :root{--bg:#FAFAFA;--fg:#0A0A0A;--muted:#6B7280;--card:#FFFFFF;--border:#E5E7EB;--accent:#111;--ok:#16a34a;--warn:#b91c1c}
     .dark{--bg:#0A0A0A;--fg:#F5F5F5;--muted:#9CA3AF;--card:#111;--border:#27272A;--accent:#FFF}
     html,body{height:100%}

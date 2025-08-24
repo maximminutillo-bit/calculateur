@@ -67,7 +67,6 @@
         <button id="reset" class="btn ghost" type="button">Réinitialiser</button>
       </div>
 
-      <!-- Ratio Cote1 / Cote2 + statut -->
       <div id="ratio-box" class="center" style="display:none; margin-top:10px">
         <span class="muted">Cote 1 ÷ Cote 2 = <strong id="ratio-value">0,0&nbsp;%</strong></span>
         <div id="ratio-status" style="margin-top:6px;font-weight:800"></div>
@@ -114,20 +113,20 @@
   </div>
 
   <script>
-    const € = (n) => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(n||0);
-    const pct = (n) => (n).toLocaleString('fr-FR', {minimumFractionDigits:1, maximumFractionDigits:1}) + " %";
+    const fmtEUR = (n) => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(n||0);
+    const pct    = (n) => (n).toLocaleString('fr-FR', {minimumFractionDigits:1, maximumFractionDigits:1}) + " %";
 
     // Formules couverture BACK↔BACK (2 issues)
-    // On mise S1 sur C1, on cherche S2 sur C2 pour égaliser les nets:
-    //  S1*(C1-1) - S2  =  S2*(C2-1) - S1
-    //  => S2 = S1 * C1 / C2
-    //  Net égalisé = S1*(C1 - 1) - S2  =  S1*(C1 - 1 - C1/C2)
+    // S1 sur C1, on cherche S2 sur C2 pour égaliser:
+    //   S1*(C1-1) - S2  =  S2*(C2-1) - S1
+    // => S2 = S1 * C1 / C2
+    // Net égalisé = S1*(C1 - 1) - S2 = S1*(C1 - 1 - C1/C2)
     function compute(){
       const S1 = parseFloat(document.getElementById('s1').value.replace(',', '.')) || 0;
       const C1 = parseFloat(document.getElementById('c1').value.replace(',', '.')) || 0;
       const C2 = parseFloat(document.getElementById('c2').value.replace(',', '.')) || 0;
 
-      // Ratio + statut (affiché si C1 & C2 > 0)
+      // Ratio + statut
       if (C1 > 0 && C2 > 0){
         const r = (C1 / C2) * 100;
         document.getElementById('ratio-value').textContent = pct(r);
@@ -142,9 +141,9 @@
 
       if (!(S1>0 && C1>1 && C2>1)) return;
 
-      const S2 = S1 * C1 / C2;
-      const net1 = S1*(C1 - 1) - S2;          // si issue 1 gagne
-      const net2 = S2*(C2 - 1) - S1;          // si issue 2 gagne
+      const S2   = S1 * C1 / C2;
+      const net1 = S1*(C1 - 1) - S2;     // si issue 1 gagne
+      const net2 = S2*(C2 - 1) - S1;     // si issue 2 gagne
       const net  = Math.abs(net1 - net2) < 1e-6 ? net1 : (net1 + net2)/2;
 
       // Bandeau d’état
@@ -154,19 +153,19 @@
       flag.style.display = "";
 
       // Détails
-      document.getElementById('profit').textContent = €(net);
-      document.getElementById('stake1').textContent = €(S1);
-      document.getElementById('stake2').textContent = €(S2);
+      document.getElementById('profit').textContent = fmtEUR(net);
+      document.getElementById('stake1').textContent = fmtEUR(S1);
+      document.getElementById('stake2').textContent = fmtEUR(S2);
 
       document.getElementById('t_c1').textContent = C1.toFixed(2);
-      document.getElementById('t_s1').textContent = €(S1);
-      document.getElementById('t_n1').textContent = €(net1);
+      document.getElementById('t_s1').textContent = fmtEUR(S1);
+      document.getElementById('t_n1').textContent = fmtEUR(net1);
 
       document.getElementById('t_c2').textContent = C2.toFixed(2);
-      document.getElementById('t_s2').textContent = €(S2);
-      document.getElementById('t_n2').textContent = €(net2);
+      document.getElementById('t_s2').textContent = fmtEUR(S2);
+      document.getElementById('t_n2').textContent = fmtEUR(net2);
 
-      document.getElementById('t_net').textContent = €(net);
+      document.getElementById('t_net').textContent = fmtEUR(net);
       document.getElementById('details').style.display = "";
       try { localStorage.setItem('backcover', JSON.stringify({S1,C1,C2})); } catch {}
     }
@@ -180,7 +179,7 @@
       try { localStorage.removeItem('backcover'); } catch {}
     });
 
-    // Raccourci "Entrée" → calcul
+    // Entrée → calcul
     ['s1','c1','c2'].forEach(id=>{
       document.getElementById(id).addEventListener('keydown', e=>{
         if(e.key==='Enter') document.getElementById('calc').click();

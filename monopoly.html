@@ -34,6 +34,8 @@
     .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
     .nav{margin-bottom:10px}
     .nav a{color:inherit;text-decoration:none;border:1px solid var(--border);padding:6px 10px;border-radius:8px}
+    /* Tags “carte orange” + ratio */
+    .chip{display:inline-block;border:1px solid var(--border);padding:6px 10px;border-radius:999px;margin:2px 4px;font-weight:700}
   </style>
 </head>
 <body class="dark">
@@ -43,7 +45,7 @@
     </div>
 
     <h1>Monopoly Lay Orbitx</h1>
-    <p class="sub">Calcule la **mise LAY optimale** pour une promo de qualification (cash), avec commission Orbitx.</p>
+    <p class="sub">Calcule la <strong>mise LAY optimale</strong> pour une promo de qualification (cash), avec commission Orbitx.</p>
 
     <div class="card">
       <div class="grid2">
@@ -57,17 +59,29 @@
         </div>
         <div>
           <label>Cote Back FR :</label>
-          <input id="back" type="number" inputmode="decimal" step="0.01" min="1.01" value="4.50">
+          <input id="back" type="number" inputmode="decimal" step="0.01" min="1.01" value="3.60">
         </div>
         <div>
           <label>Cote Lay Orbitx :</label>
-          <input id="lay" type="number" inputmode="decimal" step="0.01" min="1.01" value="3.45">
+          <input id="lay" type="number" inputmode="decimal" step="0.01" min="1.01" value="3.70">
         </div>
       </div>
 
       <div class="row">
         <button id="calc" class="btn" type="button">Calculer Promo</button>
         <button id="reset" class="btn ghost" type="button">Réinitialiser</button>
+      </div>
+
+      <!-- Ratio Back/Lay + statut -->
+      <div id="ratio-box" class="center" style="display:none; margin-top:10px">
+        <span class="muted">Back ÷ Lay = <strong id="ratio-value">0,0&nbsp;%</strong></span>
+        <div id="ratio-status" style="margin-top:6px;font-weight:800"></div>
+      </div>
+
+      <!-- Indications “carte orange” -->
+      <div id="co-tags" class="center" style="display:none; margin-top:8px">
+        <span class="chip">Carte orange&nbsp;: −2,50&nbsp;€ maximum</span>
+        <span class="chip">Carte orange&nbsp;: −3,00&nbsp;€ maximum</span>
       </div>
 
       <div id="flag" class="msg center"></div>
@@ -116,6 +130,7 @@
 
   <script>
     const fmtEUR = (n) => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(n||0);
+    const fmtPct = (n) => (n).toLocaleString('fr-FR', {minimumFractionDigits:1, maximumFractionDigits:1}) + " %";
 
     function compute() {
       const S = parseFloat(document.getElementById('stake').value.replace(',', '.')) || 0;
@@ -124,6 +139,26 @@
       const commPct = parseFloat(document.getElementById('commission').value.replace(',', '.'));
       const flag = document.getElementById('flag');
 
+      // --- Ratio Back/Lay + statut
+      if (back > 0 && lay > 0) {
+        const ratioPct = (back / lay) * 100;
+        document.getElementById('ratio-value').innerHTML = fmtPct(ratioPct);
+        const status = document.getElementById('ratio-status');
+        if (ratioPct >= 95) {
+          status.textContent = "🔥 Superbe (≥ 95 %)";
+        } else if (ratioPct >= 90) {
+          status.textContent = "✅ Ok (≥ 90 %)";
+        } else {
+          status.textContent = "⛔ Pas rentable (< 90 %)";
+        }
+        document.getElementById('ratio-box').style.display = "";
+        document.getElementById('co-tags').style.display = "";
+      } else {
+        document.getElementById('ratio-box').style.display = "none";
+        document.getElementById('co-tags').style.display = "none";
+      }
+
+      // Conditions pour la suite
       if (!(S>0 && back>1 && lay>1 && commPct>=0)) return;
 
       const c = (commPct||0)/100;
@@ -136,11 +171,11 @@
         return;
       }
 
-      // Hedging cash: gains nets égaux dans les deux issues
+      // Hedging cash: gains nets égaux
       const layStake   = S * back / denom;
       const liability  = layStake * (lay - 1);
-      const netWin     = S * (back - 1) - liability;         // si BACK gagne
-      const netLose    = -S + layStake * (1 - c);            // si LAY gagne (après commission)
+      const netWin     = S * (back - 1) - liability;   // si BACK gagne
+      const netLose    = -S + layStake * (1 - c);      // si LAY gagne
       const net        = (Math.abs(netWin - netLose) < 1e-6) ? netWin : (netWin + netLose)/2;
 
       // Bandeau d’état
@@ -167,6 +202,7 @@
 
       document.getElementById('t_net').textContent    = fmtEUR(net);
       document.getElementById('details').style.display = "";
+
       // Persist
       localStorage.setItem('monopoly', JSON.stringify({S, back, lay, commPct}));
     }
@@ -180,6 +216,8 @@
       });
       document.getElementById('flag').style.display = "none";
       document.getElementById('details').style.display = "none";
+      document.getElementById('ratio-box').style.display = "none";
+      document.getElementById('co-tags').style.display = "none";
       localStorage.removeItem('monopoly');
     });
 

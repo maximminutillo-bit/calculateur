@@ -8,6 +8,18 @@
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0A0A0A">
   <style>
+    /* 1) Tout mesurer bordures comprises */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* 2) Empêche tout débordement horizontal des champs */
+    input, select, textarea, button { max-width: 100%; }
+
+    /* 3) (optionnel) masque les flèches des <input type="number"> qui
+      peuvent bousculer la mise en page selon le navigateur */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
     /* Monochrome */
     :root{--bg:#FAFAFA;--fg:#0A0A0A;--muted:#6B7280;--card:#FFFFFF;--border:#E5E7EB;--accent:#111111;--accent-ghost:#FFFFFF;--accent-border:#111111;--warn-bg:#F5F5F5;--warn-br:#D4D4D4;--ok-bg:#F5F5F5;--ok-br:#D4D4D4}
     .dark{--bg:#0A0A0A;--fg:#F5F5F5;--muted:#9CA3AF;--card:#111111;--border:#27272A;--accent:#FFFFFF;--accent-ghost:#111111;--accent-border:#FFFFFF;--warn-bg:#171717;--warn-br:#404040;--ok-bg:#171717;--ok-br:#404040}

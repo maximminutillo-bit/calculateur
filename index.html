@@ -269,6 +269,48 @@
       hide(document.getElementById('ev-result'));
     });
     try { const s = JSON.parse(localStorage.getItem('sc-ev') || '{}'); if (s.pPct !== undefined) document.getElementById('ev-proba-a').value = s.pPct; if (s.gA !== undefined) document.getElementById('ev-gain-a').value = s.gA; if (s.gB !== undefined) document.getElementById('ev-gain-b').value = s.gB; } catch {}
+      // LAY ORBITX (avec commission)
+    const conversionLayOrbitx = (back_odds, lay_odds, freebet_amount, commission_percent = 3) => {
+      const commission = commission_percent / 100;
+      const lay_stake = (freebet_amount * (back_odds - 1)) / (lay_odds - commission);
+      const liability = lay_stake * (lay_odds - 1);
+      const gain_back = (back_odds - 1) * freebet_amount - liability;
+      const gain_lay = lay_stake * (1 - commission);
+      const net_result = Math.min(gain_back, gain_lay);
+      const conversion = (net_result / freebet_amount) * 100;
+      return { lay_stake, liability, gain_back, gain_lay, net_result, conversion };
+    }
+
+    const layCalc = () => {
+      const F = parseFloat(document.getElementById('lay-freebet').value.replace(',', '.')) || 0;
+      const cB = parseFloat(document.getElementById('lay-back').value.replace(',', '.')) || 0; // back_odds
+      const cL = parseFloat(document.getElementById('lay-lay').value.replace(',', '.')) || 0; // lay_odds
+      const comm = parseFloat(document.getElementById('lay-comm').value.replace(',', '.'));
+      if (F > 0 && cB > 1 && cL > 1 && comm >= 0 && (cL - (comm/100)) > 0) {
+        const r = conversionLayOrbitx(cB, cL, F, isNaN(comm) ? 3 : comm);
+        document.getElementById('lay-stake').textContent = fmt(r.lay_stake);
+        document.getElementById('lay-liability').textContent = fmt(r.liability);
+        document.getElementById('lay-gain-back').textContent = fmt(r.gain_back);
+        document.getElementById('lay-gain-lay').textContent = fmt(r.gain_lay);
+        document.getElementById('lay-net').textContent = fmt(r.net_result);
+        document.getElementById('lay-conv').textContent = `${(Math.round(r.conversion * 100) / 100).toFixed(2)}%`;
+        show(document.getElementById('lay-result'));
+        localStorage.setItem('sc-lay', JSON.stringify({F, cB, cL, comm}));
+      }
+    }
+    if (document.getElementById('lay-calcul')) {
+      document.getElementById('lay-calcul').addEventListener('click', layCalc);
+      document.getElementById('lay-reset').addEventListener('click', () => {
+        ['lay-freebet','lay-back','lay-lay','lay-comm'].forEach(id => document.getElementById(id).value = id==='lay-comm' ? '3' : '');
+        hide(document.getElementById('lay-result'));
+      });
+      try { const s = JSON.parse(localStorage.getItem('sc-lay') || '{}');
+        if (s.F) document.getElementById('lay-freebet').value = s.F;
+        if (s.cB) document.getElementById('lay-back').value = s.cB;
+        if (s.cL) document.getElementById('lay-lay').value = s.cL;
+        document.getElementById('lay-comm').value = (s.comm !== undefined) ? s.comm : '3';
+      } catch {}
+    }
   </script>
 </body>
 </html>

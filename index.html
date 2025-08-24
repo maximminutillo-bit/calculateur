@@ -8,309 +8,77 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎯</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { inter: ["Inter", "ui-sans-serif", "system-ui"] },
-        }
-      }
+  // Helpers
+  const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+  const show = (el) => el.classList.remove('hidden');
+  const hide = (el) => el.classList.add('hidden');
+
+  // Copy buttons (generic)
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.copy-btn');
+    if (!btn) return;
+    const id = btn.getAttribute('data-copy-target');
+    const val = document.getElementById(id)?.textContent || '';
+    try {
+      await navigator.clipboard.writeText(val.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+      const old = btn.textContent; btn.textContent = 'Copié !'; setTimeout(()=> btn.textContent=old, 1200);
+    } catch {}
+  });
+
+  // Conversion LAY OrbitX (JS port de ta fonction Python)
+  const conversionLayOrbitx = (back_odds, lay_odds, freebet_amount, commission_percent = 3) => {
+    const commission = commission_percent / 100;
+    const lay_stake = (freebet_amount * (back_odds - 1)) / (lay_odds - commission);
+    const liability = lay_stake * (lay_odds - 1);
+    const gain_back = (back_odds - 1) * freebet_amount - liability;
+    const gain_lay = lay_stake * (1 - commission);
+    const net_result = Math.min(gain_back, gain_lay);
+    const conversion = (net_result / freebet_amount) * 100;
+    return { lay_stake, liability, gain_back, gain_lay, net_result, conversion };
+  }
+
+  const updateIndicator = (conv) => {
+    const box = document.getElementById('lay-indicator');
+    box.textContent = conv >= 80 ? '✅ Conversion excellente (≥ 80%)' : '⚠️ Conversion insuffisante (< 80%)';
+    box.className = 'mt-3 rounded-xl px-3 py-2 text-sm font-medium ' + (conv >= 80 ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-amber-100 text-amber-800 border border-amber-300');
+    show(box);
+  }
+
+  const layCalc = () => {
+    const F = parseFloat(document.getElementById('lay-freebet').value.replace(',', '.')) || 0;
+    const cB = parseFloat(document.getElementById('lay-back').value.replace(',', '.')) || 0;
+    const cL = parseFloat(document.getElementById('lay-lay').value.replace(',', '.')) || 0;
+    const comm = parseFloat(document.getElementById('lay-comm').value.replace(',', '.'));
+    if (F > 0 && cB > 1 && cL > 1 && comm >= 0 && (cL - (comm/100)) > 0) {
+      const r = conversionLayOrbitx(cB, cL, F, isNaN(comm) ? 3 : comm);
+      document.getElementById('lay-stake').textContent = fmt(r.lay_stake);
+      document.getElementById('lay-liability').textContent = fmt(r.liability);
+      document.getElementById('lay-gain-back').textContent = fmt(r.gain_back);
+      document.getElementById('lay-gain-lay').textContent = fmt(r.gain_lay);
+      document.getElementById('lay-net').textContent = fmt(r.net_result);
+      const conv = Math.round(r.conversion * 100) / 100;
+      document.getElementById('lay-conv').textContent = conv.toFixed(2) + '%';
+      updateIndicator(conv);
+      show(document.getElementById('lay-result'));
+      localStorage.setItem('sc-lay', JSON.stringify({F, cB, cL, comm}));
     }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    .kbd { @apply inline-flex items-center rounded-md border border-gray-300 px-1.5 text-xs font-medium text-gray-600 shadow-sm; }
-    input[type="number"] { appearance: textfield; }
-    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  </style>
-</head>
-<body class="h-full font-inter">
-  <main class="mx-auto max-w-md p-4 sm:p-6">
-    <header class="mb-4 sm:mb-6">
-      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Supercalculateur Freebet</h1>
-      <p class="text-sm text-gray-600">MVP – conversions Freebet / Bonus / Couverture / EV</p>
-    </header>
+  }
 
-    <!-- Tabs -->
-    <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <button data-tab="freebet" class="tab-btn rounded-xl bg-black text-white py-2.5 text-sm font-semibold shadow">Freebet</button>
-      <button data-tab="bonus" class="tab-btn rounded-xl bg-white py-2.5 text-sm font-semibold shadow border">Bonus</button>
-      <button data-tab="couverture" class="tab-btn rounded-xl bg-white py-2.5 text-sm font-semibold shadow border">Couverture</button>
-      <button data-tab="ev" class="tab-btn rounded-xl bg-white py-2.5 text-sm font-semibold shadow border">EV</button>
-    </div>
+  // Listeners
+  document.getElementById('lay-calcul').addEventListener('click', layCalc);
+  document.getElementById('lay-reset').addEventListener('click', () => {
+    ['lay-freebet','lay-back','lay-lay','lay-comm'].forEach(id => document.getElementById(id).value = id==='lay-comm' ? '3' : '');
+    hide(document.getElementById('lay-result'));
+    hide(document.getElementById('lay-indicator'));
+  });
 
-    <!-- Panels -->
-    <section id="panel-freebet" class="panel space-y-4">
-      <div class="rounded-2xl bg-white p-4 shadow">
-        <h2 class="font-semibold mb-3">Calculateur Freebet (mise non rendue)</h2>
-        <div class="grid grid-cols-1 gap-3">
-          <label class="text-sm">Montant freebet (€)
-            <input id="fb-montant" type="number" inputmode="decimal" step="0.01" min="0" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 25" />
-          </label>
-          <label class="text-sm">Cote
-            <input id="fb-cote" type="number" inputmode="decimal" step="0.01" min="1" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 2.10" />
-          </label>
-          <div class="flex items-center gap-2">
-            <button id="fb-calcul" class="w-full rounded-xl bg-black text-white py-2.5 font-semibold">Calculer</button>
-            <button id="fb-reset" class="rounded-xl border py-2.5 px-3 font-medium">Réinitialiser</button>
-          </div>
-        </div>
-      </div>
-      <div id="fb-result" class="hidden rounded-2xl border border-green-200 bg-green-50 p-4">
-        <p class="text-sm text-gray-700">Gain net (hors frais)</p>
-        <p class="mt-1 text-2xl font-bold" id="fb-net">€0.00</p>
-        <div class="mt-3 flex gap-2">
-          <button class="copy-btn rounded-xl border px-3 py-2 text-sm font-medium" data-copy-target="fb-net">Copier</button>
-        </div>
-        <p class="mt-3 text-xs text-gray-500">Formule: net = F × (cote − 1)</p>
-      </div>
-    </section>
-
-    <section id="panel-bonus" class="panel hidden space-y-4">
-      <div class="rounded-2xl bg-white p-4 shadow">
-        <h2 class="font-semibold mb-3">Calculateur Bonus (mise rendue)</h2>
-        <div class="grid grid-cols-1 gap-3">
-          <label class="text-sm">Montant bonus (€)
-            <input id="bn-montant" type="number" inputmode="decimal" step="0.01" min="0" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 25" />
-          </label>
-          <label class="text-sm">Cote
-            <input id="bn-cote" type="number" inputmode="decimal" step="0.01" min="1" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 1.80" />
-          </label>
-          <div class="flex items-center gap-2">
-            <button id="bn-calcul" class="w-full rounded-xl bg-black text-white py-2.5 font-semibold">Calculer</button>
-            <button id="bn-reset" class="rounded-xl border py-2.5 px-3 font-medium">Réinitialiser</button>
-          </div>
-        </div>
-      </div>
-      <div id="bn-result" class="hidden rounded-2xl border border-green-200 bg-green-50 p-4">
-        <p class="text-sm text-gray-700">Gain net (hors frais)</p>
-        <p class="mt-1 text-2xl font-bold" id="bn-net">€0.00</p>
-        <div class="mt-3 flex gap-2">
-          <button class="copy-btn rounded-xl border px-3 py-2 text-sm font-medium" data-copy-target="bn-net">Copier</button>
-        </div>
-        <p class="mt-3 text-xs text-gray-500">Formule: net = B × cote − B</p>
-      </div>
-    </section>
-
-    <section id="panel-couverture" class="panel hidden space-y-4">
-      <div class="rounded-2xl bg-white p-4 shadow">
-        <h2 class="font-semibold mb-3">Convertisseur par Couverture (2 issues)</h2>
-        <div class="grid grid-cols-1 gap-3">
-          <label class="text-sm">Freebet côté A (€)
-            <input id="cv-fb" type="number" inputmode="decimal" step="0.01" min="0" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 25" />
-          </label>
-          <label class="text-sm">Cote A (avec freebet)
-            <input id="cv-cote-a" type="number" inputmode="decimal" step="0.01" min="1.01" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 2.20" />
-          </label>
-          <label class="text-sm">Cote B (couverture cash)
-            <input id="cv-cote-b" type="number" inputmode="decimal" step="0.01" min="1.01" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 1.70" />
-          </label>
-          <div class="flex items-center gap-2">
-            <button id="cv-calcul" class="w-full rounded-xl bg-black text-white py-2.5 font-semibold">Calculer</button>
-            <button id="cv-reset" class="rounded-xl border py-2.5 px-3 font-medium">Réinitialiser</button>
-          </div>
-        </div>
-      </div>
-      <div id="cv-result" class="hidden rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-1">
-        <p class="text-sm text-gray-700">Mise de couverture optimale</p>
-        <p class="text-2xl font-bold" id="cv-mise">€0.00</p>
-        <p class="text-sm text-gray-700">Gain net visé (≈ égal dans les 2 cas)</p>
-        <p class="text-2xl font-bold" id="cv-net">€0.00</p>
-        <div class="mt-2 flex gap-2">
-          <button class="copy-btn rounded-xl border px-3 py-2 text-sm font-medium" data-copy-target="cv-mise">Copier mise</button>
-          <button class="copy-btn rounded-xl border px-3 py-2 text-sm font-medium" data-copy-target="cv-net">Copier net</button>
-        </div>
-        <p class="mt-3 text-xs text-gray-500">Formules: mise_couv = F × (cA − 1) / (cB − 1) ; net ≈ F × (cA − 1) − mise_couv</p>
-      </div>
-    </section>
-
-    <section id="panel-ev" class="panel hidden space-y-4">
-      <div class="rounded-2xl bg-white p-4 shadow">
-        <h2 class="font-semibold mb-3">EV (Espérance de gain) – 2 issues</h2>
-        <div class="grid grid-cols-1 gap-3">
-          <label class="text-sm">Proba réelle de A (0–100%)
-            <input id="ev-proba-a" type="number" inputmode="decimal" step="0.1" min="0" max="100" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 56" />
-          </label>
-          <label class="text-sm">Gain net si A (€)
-            <input id="ev-gain-a" type="number" inputmode="decimal" step="0.01" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 22.50" />
-          </label>
-          <label class="text-sm">Gain net si B (€)
-            <input id="ev-gain-b" type="number" inputmode="decimal" step="0.01" class="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="Ex: 0 (ou négatif)" />
-          </label>
-          <div class="flex items-center gap-2">
-            <button id="ev-calcul" class="w-full rounded-xl bg-black text-white py-2.5 font-semibold">Calculer</button>
-            <button id="ev-reset" class="rounded-xl border py-2.5 px-3 font-medium">Réinitialiser</button>
-          </div>
-        </div>
-      </div>
-      <div id="ev-result" class="hidden rounded-2xl border border-purple-200 bg-purple-50 p-4">
-        <p class="text-sm text-gray-700">EV (espérance de gain)</p>
-        <p class="mt-1 text-2xl font-bold" id="ev-net">€0.00</p>
-        <div class="mt-3 flex gap-2">
-          <button class="copy-btn rounded-xl border px-3 py-2 text-sm font-medium" data-copy-target="ev-net">Copier</button>
-        </div>
-        <p class="mt-3 text-xs text-gray-500">Formule: EV = p × gainA + (1 − p) × gainB, avec p en décimal.</p>
-      </div>
-    </section>
-
-    <footer class="mt-8 text-center text-xs text-gray-500">
-      <p>Outil d'aide – ne constitue pas un conseil en pari. Pense à inclure tes frais/taxes le cas échéant.</p>
-    </footer>
-  </main>
-
-  <script>
-    // Helpers
-    const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
-    const $(id) = (sel) => document.querySelector(sel);
-    const show = (el) => el.classList.remove('hidden');
-    const hide = (el) => el.classList.add('hidden');
-
-    // Tabs logic
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const panels = document.querySelectorAll('.panel');
-    tabButtons.forEach(btn => btn.addEventListener('click', () => {
-      tabButtons.forEach(b => {
-        b.classList.remove('bg-black','text-white');
-        b.classList.add('bg-white','border');
-      });
-      btn.classList.add('bg-black','text-white');
-      btn.classList.remove('bg-white','border');
-      const tab = btn.dataset.tab;
-      panels.forEach(p => p.id === `panel-${tab}` ? show(p) : hide(p));
-      // Persist last tab
-      localStorage.setItem('sc-active-tab', tab);
-    }));
-    // Restore last tab
-    const savedTab = localStorage.getItem('sc-active-tab') || 'freebet';
-    document.querySelector(`[data-tab="${savedTab}"]`)?.click();
-
-    // Copy buttons
-    document.querySelectorAll('.copy-btn').forEach(btn => btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-copy-target');
-      const val = document.getElementById(id)?.textContent || '';
-      try { await navigator.clipboard.writeText(val.replace(/[^0-9,.-]/g, '').replace(',', '.')); btn.textContent = 'Copié !'; setTimeout(()=> btn.textContent='Copier', 1200); } catch {}
-    }));
-
-    // FREEBET
-    const fbCalc = () => {
-      const F = parseFloat(document.getElementById('fb-montant').value.replace(',', '.')) || 0;
-      const c = parseFloat(document.getElementById('fb-cote').value.replace(',', '.')) || 0;
-      if (F > 0 && c >= 1) {
-        const net = F * (c - 1);
-        document.getElementById('fb-net').textContent = fmt(net);
-        show(document.getElementById('fb-result'));
-        localStorage.setItem('sc-fb', JSON.stringify({F, c}));
-      }
-    }
-    document.getElementById('fb-calcul').addEventListener('click', fbCalc);
-    document.getElementById('fb-reset').addEventListener('click', () => {
-      document.getElementById('fb-montant').value = '';
-      document.getElementById('fb-cote').value = '';
-      hide(document.getElementById('fb-result'));
-    });
-    // restore
-    try { const s = JSON.parse(localStorage.getItem('sc-fb') || '{}'); if (s.F) document.getElementById('fb-montant').value = s.F; if (s.c) document.getElementById('fb-cote').value = s.c; } catch {}
-
-    // BONUS
-    const bnCalc = () => {
-      const B = parseFloat(document.getElementById('bn-montant').value.replace(',', '.')) || 0;
-      const c = parseFloat(document.getElementById('bn-cote').value.replace(',', '.')) || 0;
-      if (B > 0 && c >= 1) {
-        const net = B * c - B;
-        document.getElementById('bn-net').textContent = fmt(net);
-        show(document.getElementById('bn-result'));
-        localStorage.setItem('sc-bn', JSON.stringify({B, c}));
-      }
-    }
-    document.getElementById('bn-calcul').addEventListener('click', bnCalc);
-    document.getElementById('bn-reset').addEventListener('click', () => {
-      document.getElementById('bn-montant').value = '';
-      document.getElementById('bn-cote').value = '';
-      hide(document.getElementById('bn-result'));
-    });
-    try { const s = JSON.parse(localStorage.getItem('sc-bn') || '{}'); if (s.B) document.getElementById('bn-montant').value = s.B; if (s.c) document.getElementById('bn-cote').value = s.c; } catch {}
-
-    // COUVERTURE
-    const cvCalc = () => {
-      const F = parseFloat(document.getElementById('cv-fb').value.replace(',', '.')) || 0;
-      const cA = parseFloat(document.getElementById('cv-cote-a').value.replace(',', '.')) || 0;
-      const cB = parseFloat(document.getElementById('cv-cote-b').value.replace(',', '.')) || 0;
-      if (F > 0 && cA > 1 && cB > 1 && (cB - 1) > 0) {
-        const mise = (F * (cA - 1)) / (cB - 1);
-        const net = F * (cA - 1) - mise;
-        document.getElementById('cv-mise').textContent = fmt(mise);
-        document.getElementById('cv-net').textContent = fmt(net);
-        show(document.getElementById('cv-result'));
-        localStorage.setItem('sc-cv', JSON.stringify({F, cA, cB}));
-      }
-    }
-    document.getElementById('cv-calcul').addEventListener('click', cvCalc);
-    document.getElementById('cv-reset').addEventListener('click', () => {
-      ['cv-fb','cv-cote-a','cv-cote-b'].forEach(id => document.getElementById(id).value = '');
-      hide(document.getElementById('cv-result'));
-    });
-    try { const s = JSON.parse(localStorage.getItem('sc-cv') || '{}'); if (s.F) document.getElementById('cv-fb').value = s.F; if (s.cA) document.getElementById('cv-cote-a').value = s.cA; if (s.cB) document.getElementById('cv-cote-b').value = s.cB; } catch {}
-
-    // EV
-    const evCalc = () => {
-      const pPct = parseFloat(document.getElementById('ev-proba-a').value.replace(',', '.')) || 0;
-      const gA = parseFloat(document.getElementById('ev-gain-a').value.replace(',', '.')) || 0;
-      const gB = parseFloat(document.getElementById('ev-gain-b').value.replace(',', '.')) || 0;
-      const p = Math.min(Math.max(pPct / 100, 0), 1);
-      const EV = p * gA + (1 - p) * gB;
-      document.getElementById('ev-net').textContent = fmt(EV);
-      show(document.getElementById('ev-result'));
-      localStorage.setItem('sc-ev', JSON.stringify({pPct, gA, gB}));
-    }
-    document.getElementById('ev-calcul').addEventListener('click', evCalc);
-    document.getElementById('ev-reset').addEventListener('click', () => {
-      ['ev-proba-a','ev-gain-a','ev-gain-b'].forEach(id => document.getElementById(id).value = '');
-      hide(document.getElementById('ev-result'));
-    });
-    try { const s = JSON.parse(localStorage.getItem('sc-ev') || '{}'); if (s.pPct !== undefined) document.getElementById('ev-proba-a').value = s.pPct; if (s.gA !== undefined) document.getElementById('ev-gain-a').value = s.gA; if (s.gB !== undefined) document.getElementById('ev-gain-b').value = s.gB; } catch {}
-      // LAY ORBITX (avec commission)
-    const conversionLayOrbitx = (back_odds, lay_odds, freebet_amount, commission_percent = 3) => {
-      const commission = commission_percent / 100;
-      const lay_stake = (freebet_amount * (back_odds - 1)) / (lay_odds - commission);
-      const liability = lay_stake * (lay_odds - 1);
-      const gain_back = (back_odds - 1) * freebet_amount - liability;
-      const gain_lay = lay_stake * (1 - commission);
-      const net_result = Math.min(gain_back, gain_lay);
-      const conversion = (net_result / freebet_amount) * 100;
-      return { lay_stake, liability, gain_back, gain_lay, net_result, conversion };
-    }
-
-    const layCalc = () => {
-      const F = parseFloat(document.getElementById('lay-freebet').value.replace(',', '.')) || 0;
-      const cB = parseFloat(document.getElementById('lay-back').value.replace(',', '.')) || 0; // back_odds
-      const cL = parseFloat(document.getElementById('lay-lay').value.replace(',', '.')) || 0; // lay_odds
-      const comm = parseFloat(document.getElementById('lay-comm').value.replace(',', '.'));
-      if (F > 0 && cB > 1 && cL > 1 && comm >= 0 && (cL - (comm/100)) > 0) {
-        const r = conversionLayOrbitx(cB, cL, F, isNaN(comm) ? 3 : comm);
-        document.getElementById('lay-stake').textContent = fmt(r.lay_stake);
-        document.getElementById('lay-liability').textContent = fmt(r.liability);
-        document.getElementById('lay-gain-back').textContent = fmt(r.gain_back);
-        document.getElementById('lay-gain-lay').textContent = fmt(r.gain_lay);
-        document.getElementById('lay-net').textContent = fmt(r.net_result);
-        document.getElementById('lay-conv').textContent = `${(Math.round(r.conversion * 100) / 100).toFixed(2)}%`;
-        show(document.getElementById('lay-result'));
-        localStorage.setItem('sc-lay', JSON.stringify({F, cB, cL, comm}));
-      }
-    }
-    if (document.getElementById('lay-calcul')) {
-      document.getElementById('lay-calcul').addEventListener('click', layCalc);
-      document.getElementById('lay-reset').addEventListener('click', () => {
-        ['lay-freebet','lay-back','lay-lay','lay-comm'].forEach(id => document.getElementById(id).value = id==='lay-comm' ? '3' : '');
-        hide(document.getElementById('lay-result'));
-      });
-      try { const s = JSON.parse(localStorage.getItem('sc-lay') || '{}');
-        if (s.F) document.getElementById('lay-freebet').value = s.F;
-        if (s.cB) document.getElementById('lay-back').value = s.cB;
-        if (s.cL) document.getElementById('lay-lay').value = s.cL;
-        document.getElementById('lay-comm').value = (s.comm !== undefined) ? s.comm : '3';
-      } catch {}
-    }
-  </script>
+  // Restore
+  try { const s = JSON.parse(localStorage.getItem('sc-lay') || '{}');
+    if (s.F) document.getElementById('lay-freebet').value = s.F;
+    if (s.cB) document.getElementById('lay-back').value = s.cB;
+    if (s.cL) document.getElementById('lay-lay').value = s.cL;
+    document.getElementById('lay-comm').value = (s.comm !== undefined) ? s.comm : '3';
+  } catch {}
+</script>
 </body>
 </html>
